@@ -12,16 +12,16 @@ import (
 	"encoding/json"
 	"flag"
 	"image"
+	"image/draw"
+	"image/png"
 	"log"
 	"math"
 	"os"
 	"sort"
 	"strings"
 
-	"image/draw"
 	_ "image/gif"
 	_ "image/jpeg"
-	"image/png"
 )
 
 var (
