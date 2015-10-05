@@ -1,6 +1,6 @@
 /*
 The Spritinator reads a set of images (jpeg, png, ) listed on the commandline
-composes them into one big .png file, and produces a json object mapping
+composes them into one big .png file, and produces a css file mapping
 the original names to x,y offsets and widht and height in the sprite.
 
 The placement algorithm is rather simplistic: a ±sqrt(n) x sqrt(n) grid
@@ -9,14 +9,15 @@ of maxwidth x maxheight rectangles.
 package main
 
 import (
-	"encoding/json"
 	"flag"
+	"html/template"
 	"image"
 	"image/draw"
 	"image/png"
 	"log"
 	"math"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 
@@ -25,12 +26,21 @@ import (
 )
 
 var (
-	out = flag.String("o", "sprite", "Base name of the .png and .json files to write.")
+	out = flag.String("o", "sprite", "Base name of the .png and .css files to write.")
 	pfx = flag.String("pfx", "", "Prefix toc entry names with this.")
 	ps  = flag.Int("s", 0, "number of directory components to skip in the toc entries.")
 )
 
 const padding = 2 // 2 pixels between images
+
+var tmpl = template.Must(template.New("").Parse(`
+.sprite {
+	background: url("sprite.png") no-repeat;
+	display: inline-block;
+}
+{{range $k, $v := .}}.{{$k}} { width: {{$v.W}}px; height: {{$v.H}}px; background-position: {{$v.X}}px {{$v.Y}}px; }
+{{end}}
+`))
 
 func tocPath(s string) string {
 	if *ps == 0 {
@@ -112,11 +122,11 @@ func main() {
 	byname := make(map[string]*item)
 	for i, v := range images {
 		k, l := i/m, i%m
-		images[i].X, images[i].Y = k*(maxw+padding), l*(maxh+padding)
-		dp := image.Point{images[i].X, images[i].Y}
+		images[i].X, images[i].Y = -k*(maxw+padding), -l*(maxh+padding)
+		dp := image.Point{-images[i].X, -images[i].Y}
 		r := image.Rectangle{dp, dp.Add(v.img.Bounds().Size())}
 		draw.Draw(img, r, v.img, v.img.Bounds().Min, draw.Src)
-		byname[v.Name] = v
+		byname[strings.TrimSuffix(filepath.Base(v.Name), filepath.Ext(v.Name))] = v
 	}
 
 	f, err := os.Create(*out + ".png")
@@ -127,8 +137,16 @@ func main() {
 	if err := png.Encode(f, img); err != nil {
 		log.Fatal(err)
 	}
+	log.Printf("Wrote %s", f.Name())
 
-	if err := json.NewEncoder(os.Stdout).Encode(byname); err != nil {
+	g, err := os.Create(*out + ".css")
+	if err != nil {
 		log.Fatal(err)
 	}
+	defer g.Close()
+	if err := tmpl.Execute(g, byname); err != nil {
+		log.Fatal(err)
+	}
+	log.Printf("Wrote %s", g.Name())
+
 }
