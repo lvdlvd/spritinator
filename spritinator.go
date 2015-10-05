@@ -111,7 +111,7 @@ func main() {
 
 	byname := make(map[string]*item)
 	for i, v := range images {
-		k, l := i/n, i%n
+		k, l := i/m, i%m
 		images[i].X, images[i].Y = k*(maxw+padding), l*(maxh+padding)
 		dp := image.Point{images[i].X, images[i].Y}
 		r := image.Rectangle{dp, dp.Add(v.img.Bounds().Size())}
